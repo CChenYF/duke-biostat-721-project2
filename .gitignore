@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# R session and user-specific files
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Quarto cache and generated supporting files
+.quarto/
+*_files/
+
+# Rendered report outputs
+Project2.docx
+Project2.html
+Project2.pdf
