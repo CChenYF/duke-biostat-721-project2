@@ -2,9 +2,7 @@
 title: "Air Pollution in Durham County, North Carolina"
 author: "Yifei Chen"
 date: "2026-11-22"
-format:
-  docx:
-    toc: true
+format: docx
 execute:
   echo: false
   warning: false
