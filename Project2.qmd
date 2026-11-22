@@ -93,3 +93,193 @@ air_quality <- bind_rows(
 ) |>
   select(date, year, co, pm25, o3)
 ```
+
+# Tables
+
+```{r}
+#| label: range-table-function
+# yearly_range_table()
+# Purpose: Create a formatted table of daily pollutant ranges for one year.
+# Arguments:
+#   data: Processed air-quality data returned by process_air_quality().
+#   selected_year: The calendar year to summarize.
+# Returns: A flextable containing pollutant labels, units, minima, and maxima.
+yearly_range_table <- function(data, selected_year) {
+  ranges <- data |>
+    filter(year == selected_year) |>
+    summarise(
+      across(
+        c(co, pm25, o3),
+        list(
+          Minimum = ~ if (all(is.na(.x))) NA_real_ else min(.x, na.rm = TRUE),
+          Maximum = ~ if (all(is.na(.x))) NA_real_ else max(.x, na.rm = TRUE)
+        )
+      )
+    ) |>
+    pivot_longer(
+      everything(),
+      names_to = c("pollutant", "statistic"),
+      names_pattern = "(.*)_(Minimum|Maximum)"
+    ) |>
+    mutate(
+      Pollutant = recode(
+        pollutant,
+        co = "CO (ppm)",
+        pm25 = "PM2.5 (µg/m³)",
+        o3 = "O3 (ppm)"
+      ),
+      Pollutant = factor(
+        Pollutant,
+        levels = c("CO (ppm)", "PM2.5 (µg/m³)", "O3 (ppm)")
+      )
+    ) |>
+    select(Pollutant, statistic, value) |>
+    pivot_wider(names_from = statistic, values_from = value) |>
+    arrange(Pollutant)
+
+  flextable(ranges) |>
+    set_caption(
+      caption = paste0(
+        "Daily pollutant concentration ranges, ", selected_year
+      )
+    ) |>
+    colformat_double(
+      j = c("Minimum", "Maximum"), digits = 3, na_str = "—"
+    ) |>
+    set_header_labels(Pollutant = "Pollutant (units)") |>
+    theme_booktabs() |>
+    align(j = c("Minimum", "Maximum"), align = "right", part = "all") |>
+    autofit()
+}
+```
+
+```{r}
+#| label: table-2018
+yearly_range_table(air_quality, 2018)
+```
+
+```{r}
+#| label: table-2019
+yearly_range_table(air_quality, 2019)
+```
+
+```{r}
+#| label: table-2020
+yearly_range_table(air_quality, 2020)
+```
+
+# Plots
+
+## CO and O3 by month
+
+```{r}
+#| label: fig-co-o3
+#| fig-cap: "Monthly mean daily CO and O3 concentrations with 95% confidence intervals, pooled across available years."
+#| fig-width: 7
+#| fig-height: 7
+monthly_summary <- air_quality |>
+  select(date, co, o3) |>
+  pivot_longer(c(co, o3), names_to = "pollutant", values_to = "value") |>
+  mutate(
+    month = factor(
+      month(date, label = TRUE, abbr = TRUE),
+      levels = month.abb
+    )
+  ) |>
+  group_by(month, pollutant) |>
+  summarise(
+    n = sum(!is.na(value)),
+    mean = mean(value, na.rm = TRUE),
+    sd = sd(value, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    se = sd / sqrt(n),
+    lower = mean - 1.96 * se,
+    upper = mean + 1.96 * se,
+    pollutant_label = recode(
+      pollutant, co = "CO (ppm)", o3 = "O3 (ppm)"
+    ),
+    color_group = recode(pollutant, co = "CO", o3 = "O3")
+  )
+
+ggplot(
+  monthly_summary,
+  aes(x = month, y = mean, color = color_group, group = color_group)
+) +
+  geom_errorbar(
+    aes(ymin = lower, ymax = upper), width = 0.16, linewidth = 0.7
+  ) +
+  geom_point(size = 2.7) +
+  facet_wrap(~ pollutant_label, scales = "free_y", ncol = 1) +
+  scale_color_manual(values = pollutant_colors, name = "Pollutant") +
+  labs(
+    title = "CO and ozone follow opposing seasonal patterns",
+    subtitle = "Daily values pooled by calendar month across 2018–2020",
+    x = "Month",
+    y = "Monthly mean daily concentration"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(face = "bold"),
+    plot.title = element_text(face = "bold")
+  )
+```
+
+Separate panels with independent y-axis scales make both seasonal patterns readable without implying a conversion between CO and O3. Consistent blue and orange colors distinguish the pollutants while the panel labels retain their respective units.
+
+## PM2.5 by month and year
+
+```{r}
+#| label: fig-pm25
+#| fig-cap: "Distribution of daily PM2.5 concentrations by month and year. The 2020 data end in April."
+#| fig-width: 7
+#| fig-height: 4.8
+pm25_plot_data <- air_quality |>
+  mutate(
+    month = factor(
+      month(date, label = TRUE, abbr = TRUE),
+      levels = month.abb
+    ),
+    year = factor(year)
+  )
+
+ggplot(
+  pm25_plot_data,
+  aes(x = month, y = pm25, fill = year, color = year)
+) +
+  geom_boxplot(
+    position = position_dodge(width = 0.78),
+    width = 0.64,
+    alpha = 0.42,
+    outlier.size = 1,
+    linewidth = 0.55,
+    na.rm = TRUE
+  ) +
+  scale_fill_manual(values = year_colors, name = "Year") +
+  scale_color_manual(values = year_colors, name = "Year") +
+  labs(
+    title = "Daily PM2.5 distributions vary across months and years",
+    subtitle = "EPA measurements at the RDU Airport monitor",
+    x = "Month",
+    y = "Daily mean PM2.5 (µg/m³)"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+```
+
+Side-by-side boxplots show the center, spread, and unusual daily values for each month and year without obscuring the data with hundreds of overlapping points.
+
+# Interpretation
+
+CO is generally highest in late fall and winter and lowest in late spring and summer, while O3 rises through spring and peaks in the warmer months before declining in fall. PM2.5 shows a less consistent seasonal pattern: 2018 is relatively high in summer and at year-end, whereas 2019 is higher early in the year, and the tables also show an unusually high 2020 maximum of 31.200 µg/m³. Comparisons involving 2020 should be cautious because that year includes only January through April, while May through December are based solely on 2018 and 2019.
+
+# AI Use Statement
+
+I used AI tools to help refine code labels and comments, adjust figure formatting and titles, and organize the structure of the README. I also used AI to identify potential conflicts in the data-cleaning process and conduct a final project review, and I checked its suggestions by reviewing the code, running all analysis steps, and verifying the cleaned data, tables, figures, and unit conversions.
