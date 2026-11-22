@@ -9,6 +9,9 @@ execute:
   message: false
 ---
 
+**GitHub repository:** [CChenYF/duke-biostat-721-project2](https://github.com/CChenYF/duke-biostat-721-project2)
+
+
 # Background
 
 Sickle cell disease can cause pain and other complications when sickled red blood cells obstruct blood flow, and exposure to air pollution may aggravate these events. This report cleans daily air-quality measurements from the EPA monitor at RDU Airport for 2018 through April 2020 and summarizes patterns in carbon monoxide (CO), fine particulate matter (PM2.5), and ozone (O3).
