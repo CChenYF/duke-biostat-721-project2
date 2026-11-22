@@ -1,0 +1,95 @@
+---
+title: "Air Pollution in Durham County, North Carolina"
+author: "Yifei Chen"
+date: "2026-11-22"
+format:
+  docx:
+    toc: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Background
+
+Sickle cell disease can cause pain and other complications when sickled red blood cells obstruct blood flow, and exposure to air pollution may aggravate these events. This report cleans daily air-quality measurements from the EPA monitor at RDU Airport for 2018 through April 2020 and summarizes patterns in carbon monoxide (CO), fine particulate matter (PM2.5), and ozone (O3).
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(lubridate)
+library(flextable)
+
+pollutant_colors <- c(
+  "CO" = "#0072B2",
+  "O3" = "#D55E00"
+)
+year_colors <- c(
+  "2018" = "#0072B2",
+  "2019" = "#E69F00",
+  "2020" = "#009E73"
+)
+```
+
+# Data processing
+
+```{r}
+#| label: process-function
+# process_air_quality()
+# Purpose: Read and clean one year of daily air-quality measurements.
+# Arguments:
+#   file_path: Path to a CSV file containing one year of EPA measurements.
+#   o3_units: Desired ozone units, either "ppm" (default) or "ppb".
+# Returns: A tibble with one row per date and cleaned CO, PM2.5, and O3 values.
+process_air_quality <- function(file_path, o3_units = c("ppm", "ppb")) {
+  o3_units <- match.arg(o3_units)
+
+  clean_data <- read_csv(file_path, show_col_types = FALSE) |>
+    transmute(
+      date = mdy(.data[["Date"]]),
+      co = as.numeric(.data[["Daily Max 8-hour CO Concentration"]]),
+      pm25 = as.numeric(.data[["Daily Mean PM2.5 Concentration"]]),
+      o3 = as.numeric(.data[["Daily Max 8-hour Ozone Concentration"]])
+    ) |>
+    distinct()
+
+  # Correct impossible negative concentrations before computing daily averages.
+  pollutants <- c("co", "pm25", "o3")
+  for (pollutant in pollutants) {
+    negative_value <- !is.na(clean_data[[pollutant]]) &
+      clean_data[[pollutant]] < 0
+    clean_data[[pollutant]][negative_value] <- 0
+  }
+
+  clean_data <- clean_data |>
+    group_by(date) |>
+    summarise(
+      across(
+        all_of(pollutants),
+        ~ if (all(is.na(.x))) NA_real_ else mean(.x, na.rm = TRUE)
+      ),
+      .groups = "drop"
+    ) |>
+    arrange(date)
+
+  if (o3_units == "ppb") {
+    clean_data <- clean_data |>
+      mutate(o3 = o3 * 1000)
+  }
+
+  clean_data
+}
+```
+
+Exact duplicate rows are removed before averaging so that repeated records do not receive extra weight. Negative measurement errors are then set to zero before daily means are calculated, ensuring the corrected values contribute to the averages.
+
+```{r}
+#| label: combine-years
+air_quality <- bind_rows(
+  process_air_quality("data/AQ_2018.csv") |> mutate(year = 2018L),
+  process_air_quality("data/AQ_2019.csv") |> mutate(year = 2019L),
+  process_air_quality("data/AQ_2020.csv") |> mutate(year = 2020L)
+) |>
+  select(date, year, co, pm25, o3)
+```
