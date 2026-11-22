@@ -9,6 +9,7 @@ The data are raw daily measurements from the U.S. Environmental Protection Agenc
 ## File structure
 
 - `data/` contains the three source CSV files: `AQ_2018.csv`, `AQ_2019.csv`, and `AQ_2020.csv`.
+- `duke-biostat-721-project2.Rproj` opens the repository as an R project.
 - `Project2.qmd` contains the documented cleaning function, annual summary tables, plots, and interpretation.
 - `README.md` describes the project and how to reproduce the report.
 

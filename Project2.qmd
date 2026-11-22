@@ -136,30 +136,42 @@ yearly_range_table <- function(data, selected_year) {
     arrange(Pollutant)
 
   flextable(ranges) |>
-    set_caption(
-      caption = paste0(
-        "Daily pollutant concentration ranges, ", selected_year
-      )
-    ) |>
     colformat_double(
       j = c("Minimum", "Maximum"), digits = 3, na_str = "—"
     ) |>
     set_header_labels(Pollutant = "Pollutant (units)") |>
     theme_booktabs() |>
     align(j = c("Minimum", "Maximum"), align = "right", part = "all") |>
+    set_table_properties(
+      opts_word = list(
+        split = FALSE,
+        keep_with_next = TRUE,
+        repeat_headers = TRUE
+      )
+    ) |>
     autofit()
 }
 ```
+
+### Daily pollutant concentration ranges 2018
 
 ```{r}
 #| label: table-2018
 yearly_range_table(air_quality, 2018)
 ```
 
+```{=openxml}
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+```
+
+### Daily pollutant concentration ranges 2019
+
 ```{r}
 #| label: table-2019
 yearly_range_table(air_quality, 2019)
 ```
+
+### Daily pollutant concentration ranges 2020
 
 ```{r}
 #| label: table-2020
